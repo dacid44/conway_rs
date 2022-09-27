@@ -15,8 +15,8 @@ fn main() {
     );
 }
 
-#[cfg(target_arch="wasm32")]
-pub use wasm_bindgen_rayon::init_thread_pool;
+// #[cfg(target_arch="wasm32")]
+// pub use wasm_bindgen_rayon::init_thread_pool;
 
 // when compiling to web using trunk.
 #[cfg(target_arch = "wasm32")]

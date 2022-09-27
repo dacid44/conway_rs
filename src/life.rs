@@ -30,12 +30,31 @@ pub(crate) fn draw_board(ui: &mut Ui, board: &Array2<bool>) {
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 pub(crate) fn update_board(board: &mut Array2<bool>) {
     let mut new_board = new_blank_board();
 
     ndarray::Zip::from(new_board.slice_mut(s![1..-1, 1..-1]))
         .and(board.windows((3, 3)))
         .par_for_each(|a, b| {
+            *a = match (b[[1, 1]], b.iter().filter(|c| **c).count() - (b[[1, 1]] as usize)) {
+                (true, 2) => true,
+                (true, 3) => true,
+                (false, 3) => true,
+                _ => false,
+            }
+        });
+
+    *board = new_board;
+}
+
+#[cfg(target_arch = "wasm32")]
+pub(crate) fn update_board(board: &mut Array2<bool>) {
+    let mut new_board = new_blank_board();
+
+    ndarray::Zip::from(new_board.slice_mut(s![1..-1, 1..-1]))
+        .and(board.windows((3, 3)))
+        .for_each(|a, b| {
             *a = match (b[[1, 1]], b.iter().filter(|c| **c).count() - (b[[1, 1]] as usize)) {
                 (true, 2) => true,
                 (true, 3) => true,

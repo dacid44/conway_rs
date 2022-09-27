@@ -1,5 +1,5 @@
 [build]
 filehash = false
-pattern_script = '''
-<script type="module">import init, { initThreadPool} from '{base}{js}';await init('{base}{wasm}'); await initThreadPool(navigator.hardwareConcurrency);</script>
-''''
+# pattern_script = '''
+# <script type="module">import init, { initThreadPool} from '{base}{js}';await init('{base}{wasm}'); await initThreadPool(navigator.hardwareConcurrency);</script>
+# ''''
