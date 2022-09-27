@@ -13,20 +13,47 @@ pub(crate) const CELL_SIZE: f32 = DISPLAY_SIZE / (REAL_BOARD_SIZE as f32);
 
 pub(crate) fn draw_board(ui: &mut Ui, board: &Array2<bool>) {
     let painter = ui.painter();
-    for ((x, y), _) in board.indexed_iter().filter(|(_, x)| **x) {
-        if is_edges(x, y) {
-            continue;
-        }
+    let top_left = ui.min_rect().min;
 
-        let top_left = ui.min_rect().min;
-        painter.rect_filled(
-            egui::Rect::from([
-                top_left + Vec2::new((x - 1) as f32, (y - 1) as f32) * CELL_SIZE,
-                top_left + Vec2::new(x as f32, y as f32) * CELL_SIZE,
-            ]),
-            egui::Rounding::none(),
-            Color32::RED,
-        );
+    if CELL_SIZE < 1.0 {
+        let mut display_board = Array2::default((DISPLAY_SIZE as usize, DISPLAY_SIZE as usize));
+        let chunk_size = REAL_BOARD_SIZE / (DISPLAY_SIZE as usize);
+        let num_in_chunk = (chunk_size * chunk_size) as f32;
+
+        ndarray::Zip::from(&mut display_board)
+            .and(
+                board.slice(s![1..-1, 1..-1])
+                    .exact_chunks((chunk_size, chunk_size))
+            )
+            .for_each(|a, b| {
+                *a = b.iter().filter(|c| **c).count() as f32 / num_in_chunk;
+            });
+
+        for ((x, y), c) in display_board.indexed_iter().filter(|(_, x)| **x > 0.0) {
+           painter.rect_filled(
+               egui::Rect::from([
+                    top_left + Vec2::new(x as f32, y as f32),
+                    top_left + Vec2::new(x as f32 + 1.0, y as f32 + 1.0),
+               ]),
+               egui::Rounding::none(),
+               Color32::from_rgb(egui::color::gamma_u8_from_linear_f32(*c), 0, 0),
+            );
+        }
+    } else {
+        for ((x, y), _) in board.indexed_iter().filter(|(_, x)| **x) {
+            if is_edges(x, y) {
+                continue;
+            }
+
+            painter.rect_filled(
+                egui::Rect::from([
+                    top_left + Vec2::new((x - 1) as f32, (y - 1) as f32) * CELL_SIZE,
+                    top_left + Vec2::new(x as f32, y as f32) * CELL_SIZE,
+                ]),
+                egui::Rounding::none(),
+                Color32::RED,
+            );
+        }
     }
 }
 
