@@ -1,26 +1,40 @@
+use std::borrow::{Borrow, BorrowMut};
+use egui::mutex::Mutex;
+use ndarray::Array2;
+use crate::life;
+use crate::life::Shift;
+
 /// We derive Deserialize/Serialize so we can persist app state on shutdown.
 #[derive(serde::Deserialize, serde::Serialize)]
 #[serde(default)] // if we add new fields, give them default values when deserializing old state
-pub struct TemplateApp {
+pub struct GameOfLife {
     // Example stuff:
     label: String,
 
     // this how you opt-out of serialization of a member
     #[serde(skip)]
     value: f32,
+
+    #[serde(skip)]
+    board: Mutex<Array2<bool>>,
+
+    #[serde(skip)]
+    continuous_play: bool,
 }
 
-impl Default for TemplateApp {
+impl Default for GameOfLife {
     fn default() -> Self {
         Self {
             // Example stuff:
             label: "Hello World!".to_owned(),
             value: 2.7,
+            board: Mutex::new(life::new_blank_board()),
+            continuous_play: false,
         }
     }
 }
 
-impl TemplateApp {
+impl GameOfLife {
     /// Called once before the first frame.
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
         // This is also where you can customized the look at feel of egui using
@@ -36,7 +50,7 @@ impl TemplateApp {
     }
 }
 
-impl eframe::App for TemplateApp {
+impl eframe::App for GameOfLife {
     /// Called by the frame work to save state before shutdown.
     fn save(&mut self, storage: &mut dyn eframe::Storage) {
         eframe::set_value(storage, eframe::APP_KEY, self);
@@ -45,7 +59,7 @@ impl eframe::App for TemplateApp {
     /// Called each time the UI needs repainting, which may be many times per second.
     /// Put your widgets into a `SidePanel`, `TopPanel`, `CentralPanel`, `Window` or `Area`.
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        let Self { label, value } = self;
+        // println!("{:?}", *self.board.lock());
 
         // Examples of how to create different panels and windows.
         // Pick whichever suits you.
@@ -56,6 +70,7 @@ impl eframe::App for TemplateApp {
         egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
             // The top panel is often a good place for a menu bar:
             egui::menu::bar(ui, |ui| {
+                egui::widgets::global_dark_light_mode_switch(ui);
                 ui.menu_button("File", |ui| {
                     if ui.button("Quit").clicked() {
                         _frame.close();
@@ -65,17 +80,43 @@ impl eframe::App for TemplateApp {
         });
 
         egui::SidePanel::left("side_panel").show(ctx, |ui| {
-            ui.heading("Side Panel");
+            if ui.button("Import File").clicked() {
+                *self.board.lock() = life::import_from_file();
+            }
+
+            if ui.button("Import RLE file").clicked() {
+                *self.board.lock() = life::import_rle();
+            }
+
+            if ui.button("Next generation").clicked() || self.continuous_play {
+                life::update_board(self.board.lock().borrow_mut());
+                ctx.request_repaint();
+            }
+
+            ui.checkbox(&mut self.continuous_play, "Play continuously");
+
+            if ui.button("Clear").clicked() {
+                *self.board.lock() = life::new_blank_board();
+            }
+
+            if ui.button("New checkerboard").clicked() {
+                *self.board.lock() = life::new_checkerboard();
+            }
 
             ui.horizontal(|ui| {
-                ui.label("Write something: ");
-                ui.text_edit_singleline(label);
+                if ui.button("Up").clicked() {
+                    life::shift_board(self.board.lock().borrow_mut(), Shift::Up(1));
+                }
+                if ui.button("Down").clicked() {
+                    life::shift_board(self.board.lock().borrow_mut(), Shift::Down(1));
+                }
+                if ui.button("Left").clicked() {
+                    life::shift_board(self.board.lock().borrow_mut(), Shift::Left(1));
+                }
+                if ui.button("Right").clicked() {
+                    life::shift_board(self.board.lock().borrow_mut(), Shift::Right(1));
+                }
             });
-
-            ui.add(egui::Slider::new(value, 0.0..=10.0).text("value"));
-            if ui.button("Increment").clicked() {
-                *value += 1.0;
-            }
 
             ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
                 ui.horizontal(|ui| {
@@ -93,15 +134,27 @@ impl eframe::App for TemplateApp {
         });
 
         egui::CentralPanel::default().show(ctx, |ui| {
-            // The central panel the region left after adding TopPanel's and SidePanel's
+            let egui::InnerResponse { response, inner: top_left } =
+                egui::Frame::canvas(&*ctx.style())
+                    .show(ui, |ui| {
+                        ui.set_width(life::DISPLAY_SIZE);
+                        ui.set_height(life::DISPLAY_SIZE);
 
-            ui.heading("eframe template");
-            ui.hyperlink("https://github.com/emilk/eframe_template");
-            ui.add(egui::github_link_file!(
-                "https://github.com/emilk/eframe_template/blob/master/",
-                "Source code."
-            ));
-            egui::warn_if_debug_build(ui);
+                        life::draw_board(ui, self.board.lock().borrow());
+
+                        ui.min_rect().min
+                    });
+
+            let response = response.interact(egui::Sense::click());
+
+            if response.clicked() {
+                if let Some(pos) = response.interact_pointer_pos() {
+                    life::edit_board(
+                        self.board.lock().borrow_mut(),
+                        pos.to_vec2() - top_left.to_vec2(),
+                    );
+                }
+            }
         });
 
         if false {
@@ -114,3 +167,4 @@ impl eframe::App for TemplateApp {
         }
     }
 }
+

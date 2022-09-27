@@ -9,11 +9,14 @@ fn main() {
 
     let native_options = eframe::NativeOptions::default();
     eframe::run_native(
-        "eframe template",
+        "Conway's Game of Life",
         native_options,
-        Box::new(|cc| Box::new(eframe_template::TemplateApp::new(cc))),
+        Box::new(|cc| Box::new(conway_rs::GameOfLife::new(cc))),
     );
 }
+
+#[cfg(target_arch="wasm32")]
+pub use wasm_bindgen_rayon::init_thread_pool;
 
 // when compiling to web using trunk.
 #[cfg(target_arch = "wasm32")]
@@ -25,10 +28,11 @@ fn main() {
     tracing_wasm::set_as_global_default();
 
     let web_options = eframe::WebOptions::default();
+
     eframe::start_web(
         "the_canvas_id", // hardcode it
         web_options,
-        Box::new(|cc| Box::new(eframe_template::TemplateApp::new(cc))),
+        Box::new(|cc| Box::new(conway_rs::GameOfLife::new(cc))),
     )
     .expect("failed to start eframe");
 }
