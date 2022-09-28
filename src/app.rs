@@ -1,7 +1,7 @@
 use std::borrow::{Borrow, BorrowMut};
 use egui::mutex::Mutex;
 use ndarray::Array2;
-use crate::life;
+use crate::{life, life_hs};
 use crate::life::Shift;
 
 /// We derive Deserialize/Serialize so we can persist app state on shutdown.
@@ -16,7 +16,8 @@ pub struct GameOfLife {
     value: f32,
 
     #[serde(skip)]
-    board: Mutex<Array2<bool>>,
+    // board: Mutex<Array2<bool>>,
+    board: Mutex<life_hs::LifeBoard>,
 
     #[serde(skip)]
     continuous_play: bool,
@@ -28,7 +29,7 @@ impl Default for GameOfLife {
             // Example stuff:
             label: "Hello World!".to_owned(),
             value: 2.7,
-            board: Mutex::new(life::new_blank_board()),
+            board: Default::default(),
             continuous_play: false,
         }
     }
@@ -80,43 +81,43 @@ impl eframe::App for GameOfLife {
         });
 
         egui::SidePanel::left("side_panel").show(ctx, |ui| {
-            if ui.button("Import File").clicked() {
-                *self.board.lock() = life::import_from_file();
-            }
-
-            if ui.button("Import RLE file").clicked() {
-                *self.board.lock() = life::import_rle();
-            }
+            // if ui.button("Import File").clicked() {
+            //     *self.board.lock() = life::import_from_file();
+            // }
+            //
+            // if ui.button("Import RLE file").clicked() {
+            //     *self.board.lock() = life::import_rle();
+            // }
 
             if ui.button("Next generation").clicked() || self.continuous_play {
-                life::update_board(self.board.lock().borrow_mut());
+                self.board.lock().update();
                 ctx.request_repaint();
             }
 
             ui.checkbox(&mut self.continuous_play, "Play continuously");
 
             if ui.button("Clear").clicked() {
-                *self.board.lock() = life::new_blank_board();
+                *self.board.lock() = life_hs::LifeBoard::default();
             }
 
             if ui.button("New checkerboard").clicked() {
-                *self.board.lock() = life::new_checkerboard();
+                *self.board.lock() = life_hs::LifeBoard::new_checkerboard();
             }
 
-            ui.horizontal(|ui| {
-                if ui.button("Up").clicked() {
-                    life::shift_board(self.board.lock().borrow_mut(), Shift::Up(1));
-                }
-                if ui.button("Down").clicked() {
-                    life::shift_board(self.board.lock().borrow_mut(), Shift::Down(1));
-                }
-                if ui.button("Left").clicked() {
-                    life::shift_board(self.board.lock().borrow_mut(), Shift::Left(1));
-                }
-                if ui.button("Right").clicked() {
-                    life::shift_board(self.board.lock().borrow_mut(), Shift::Right(1));
-                }
-            });
+            // ui.horizontal(|ui| {
+            //     if ui.button("Up").clicked() {
+            //         life::shift_board(self.board.lock().borrow_mut(), Shift::Up(1));
+            //     }
+            //     if ui.button("Down").clicked() {
+            //         life::shift_board(self.board.lock().borrow_mut(), Shift::Down(1));
+            //     }
+            //     if ui.button("Left").clicked() {
+            //         life::shift_board(self.board.lock().borrow_mut(), Shift::Left(1));
+            //     }
+            //     if ui.button("Right").clicked() {
+            //         life::shift_board(self.board.lock().borrow_mut(), Shift::Right(1));
+            //     }
+            // });
 
             ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
                 ui.horizontal(|ui| {
@@ -137,24 +138,24 @@ impl eframe::App for GameOfLife {
             let egui::InnerResponse { response, inner: top_left } =
                 egui::Frame::canvas(&*ctx.style())
                     .show(ui, |ui| {
-                        ui.set_width(life::DISPLAY_SIZE);
-                        ui.set_height(life::DISPLAY_SIZE);
+                        ui.set_width(life_hs::BOARD_DISPLAY_SIZE as f32);
+                        ui.set_height(life_hs::BOARD_DISPLAY_SIZE as f32);
 
-                        life::draw_board(ui, self.board.lock().borrow());
+                        self.board.lock().draw(ui);
 
                         ui.min_rect().min
                     });
 
             let response = response.interact(egui::Sense::click());
 
-            if response.clicked() {
-                if let Some(pos) = response.interact_pointer_pos() {
-                    life::edit_board(
-                        self.board.lock().borrow_mut(),
-                        pos.to_vec2() - top_left.to_vec2(),
-                    );
-                }
-            }
+            // if response.clicked() {
+            //     if let Some(pos) = response.interact_pointer_pos() {
+            //         life::edit_board(
+            //             self.board.lock().borrow_mut(),
+            //             pos.to_vec2() - top_left.to_vec2(),
+            //         );
+            //     }
+            // }
         });
 
         if false {

@@ -5,7 +5,7 @@ use egui::{Color32, Pos2, Ui, Vec2};
 use ndarray::{Array1, Array2, Axis, s};
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 
-const REAL_BOARD_SIZE: usize = 1024;
+const REAL_BOARD_SIZE: usize = 2048;
 const BOARD_SIZE: usize = REAL_BOARD_SIZE + 2;
 const BOARD_LAST: usize = REAL_BOARD_SIZE + 1;
 pub(crate) const DISPLAY_SIZE: f32 = 512.0;
@@ -25,7 +25,7 @@ pub(crate) fn draw_board(ui: &mut Ui, board: &Array2<bool>) {
                 board.slice(s![1..-1, 1..-1])
                     .exact_chunks((chunk_size, chunk_size))
             )
-            .for_each(|a, b| {
+            .par_for_each(|a, b| {
                 *a = b.iter().filter(|c| **c).count() as f32 / num_in_chunk;
             });
 
